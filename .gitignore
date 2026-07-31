@@ -1,0 +1,23 @@
+# Generated artifacts — everything here is reproducible from the source map
+build/
+
+# Source map archives (25+ MB; use GitHub Releases or Git LFS)
+*.w3x
+*.w3m
+*.mpq
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node (future engine work)
+node_modules/
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

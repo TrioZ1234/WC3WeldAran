@@ -1,0 +1,127 @@
+{
+  "info": {
+    "name": "|cff00ffff 9.9q(Beta)WarForWeldAran",
+    "author": "[TZ.Ent]AeNeMeR/TrioZ",
+    "version": 25,
+    "playable": [
+      468,
+      468
+    ],
+    "players": 12,
+    "forces": 6,
+    "tileset": "F"
+  },
+  "terrain": {
+    "tiles": [
+      480,
+      480
+    ],
+    "tilepoints": 231361,
+    "ground_tilesets": [
+      "Fdrt",
+      "Frok",
+      "Wsng",
+      "Ldrg",
+      "Fgrs",
+      "Alvd",
+      "Zgrs",
+      "Adrg",
+      "Yblm",
+      "Ywmb",
+      "Dlvc",
+      "Idki",
+      "Iice",
+      "Qcbp",
+      "Qstp",
+      "Zsan"
+    ],
+    "cliff_tilesets": [
+      "CFdi",
+      "CFgr"
+    ]
+  },
+  "doodads": {
+    "count": 25222,
+    "distinct": 431,
+    "special": 1
+  },
+  "units": {
+    "count": 2401,
+    "distinct": 300,
+    "heroes": 2310
+  },
+  "object_data": {
+    "units": {
+      "custom": 291,
+      "modified": 182,
+      "mods": 8932
+    },
+    "items": {
+      "custom": 38,
+      "modified": 46,
+      "mods": 632
+    },
+    "destructables": {
+      "custom": 19,
+      "modified": 82,
+      "mods": 413
+    },
+    "doodads": {
+      "custom": 184,
+      "modified": 42,
+      "mods": 1388
+    },
+    "abilities": {
+      "custom": 183,
+      "modified": 169,
+      "mods": 3539
+    },
+    "buffs": {
+      "custom": 10,
+      "modified": 9,
+      "mods": 53
+    },
+    "upgrades": {
+      "custom": 59,
+      "modified": 6,
+      "mods": 635
+    }
+  },
+  "object_totals": {
+    "custom": 784,
+    "mods": 15592
+  },
+  "script": {
+    "bytes": 764811,
+    "lines": 16177,
+    "functions": 1018,
+    "globals": 811,
+    "triggers": 205,
+    "timers": 15,
+    "create_unit": 2321
+  },
+  "strings": 3782,
+  "assets": {
+    "map data": {
+      "files": 25,
+      "bytes": 12862501
+    },
+    "textures": {
+      "files": 157,
+      "bytes": 13271225
+    },
+    "models": {
+      "files": 264,
+      "bytes": 26575066
+    },
+    "other": {
+      "files": 2,
+      "bytes": 14631
+    },
+    "audio": {
+      "files": 1,
+      "bytes": 2401248
+    }
+  },
+  "assets_total_bytes": 55124671
+}
