@@ -19,6 +19,7 @@ Outputs
 
 from __future__ import annotations
 
+import array
 import json
 import os
 import re
@@ -125,30 +126,54 @@ def main() -> int:
         w, h = terrain_info.width, terrain_info.height
         base = terrain_info.tilepoint_offset
         count = w * h
-        heights = [0] * count
-        water = [0] * count
+        heights = array.array("h", [0]) * count
+        water = array.array("h", [0]) * count
         ground = bytearray(count)
         cliff = bytearray(count)
         layer = bytearray(count)
+        flags = bytearray(count)
         for i in range(count):
-            off = base + i * 7
             gh, wl, flags_tex, details, cliff_layer = struct.unpack_from(
-                "<hhBBB", raw_w3e, off)
+                "<hhBBB", raw_w3e, base + i * 7)
             heights[i] = gh
-            water[i] = wl & 0x3FFF
+            # Top two bits are the boundary flag, not part of the water level.
+            water[i] = (wl & 0x3FFF) - 0x2000
             ground[i] = flags_tex & 0x0F
+            flags[i] = (flags_tex >> 4) & 0x0F
             cliff[i] = (cliff_layer >> 4) & 0x0F
             layer[i] = cliff_layer & 0x0F
+
+        # Runtime loads a flat binary; JSON keeps only the metadata. Parsing
+        # five 231k-element JSON arrays in a browser is pure waste.
+        blob = bytearray()
+        blob += heights.tobytes()
+        blob += water.tobytes()
+        blob += bytes(ground) + bytes(cliff) + bytes(layer) + bytes(flags)
+        bin_path = os.path.join(out, "terrain.bin")
+        os.makedirs(os.path.dirname(bin_path), exist_ok=True)
+        with open(bin_path, "wb") as handle:
+            handle.write(blob)
+        print(f"  {os.path.relpath(bin_path):<44} {len(blob):>12,} bytes")
+
         write_json(os.path.join(out, "terrain.json"), {
             "width": w, "height": h,
             "groundTilesets": terrain_info.ground_tilesets,
             "cliffTilesets": terrain_info.cliff_tilesets,
             "offset": [terrain_info.offset_x, terrain_info.offset_y],
-            "height": heights,
-            "water": water,
-            "groundTexture": list(ground),
-            "cliffTexture": list(cliff),
-            "layerHeight": list(layer),
+            "tileSize": 128,
+            "heightFormula": "(groundHeight - 8192) / 4 + (layerHeight - 2) * 128",
+            "binary": {
+                "file": "terrain.bin",
+                "count": count,
+                "layout": [
+                    {"name": "groundHeight", "type": "int16"},
+                    {"name": "water", "type": "int16"},
+                    {"name": "groundTexture", "type": "uint8"},
+                    {"name": "cliffTexture", "type": "uint8"},
+                    {"name": "layerHeight", "type": "uint8"},
+                    {"name": "flags", "type": "uint8"},
+                ],
+            },
         })
 
     # -- placement ----------------------------------------------------------

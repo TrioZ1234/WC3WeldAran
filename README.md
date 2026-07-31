@@ -36,18 +36,19 @@ WFWA.w3x ──► extract_map.py ──► сырые файлы WC3 ──► 
 ## Быстрый старт
 
 ```bash
-# 1. Распаковать архив карты (MPQ)
-python3 tools/extract_map.py WFWA_v0.9.9q.w3x build/extracted
+# Весь конвейер одной командой: распаковка, анализ, конвертация,
+# публикация в оба клиента
+python3 build.py путь/к/WFWA_v0.9.9q.w3x
 
-# 2. Отчёт по содержимому
-python3 tools/analyze_map.py  build/extracted --json build/report.json
-python3 tools/analyze_jass.py build/extracted/war3map.j --json build/jass_api.json
+# Затем — веб-клиент
+cd web && npm install && npm run dev     # http://localhost:5173
 
-# 3. Конвертация игровых данных в JSON
-python3 tools/export_data.py build/extracted build/data
+# …или нативная сборка: открыть каталог godot/ в Godot 4.3+
 ```
 
-Зависимостей нет — только Python 3.8+ из стандартной поставки.
+Python 3.8+. Конвертация ассетов требует Pillow (`pip install Pillow`);
+всё остальное работает на стандартной библиотеке. Есть `Makefile` с теми же
+целями, если у вас есть `make`.
 
 ## Что уже работает
 
@@ -60,19 +61,34 @@ python3 tools/export_data.py build/extracted build/data
 | `tools/analyze_map.py` | ✅ | Отчёт: территория, объекты, скрипт, вес ассетов |
 | `tools/analyze_jass.py` | ✅ | Определение требуемой поверхности API движка |
 | `tools/export_data.py` | ✅ | Экспорт всех игровых таблиц в JSON |
-| Конвертер MDX → glTF | ⬜ | Следующий этап |
-| Конвертер BLP → PNG/KTX2 | ⬜ | Следующий этап |
-| Движок | ⬜ | Ожидает выбора стека — см. `docs/02-architecture.md` |
+| `tools/wc3/blp.py` | ✅ | Декодер текстур BLP1 (режимы JPEG и палитровый) |
+| `tools/wc3/mdx.py` | ✅ | Парсер моделей MDX v800 |
+| `tools/wc3/gltf.py` | ✅ | Запись glTF 2.0 / GLB |
+| `tools/convert_textures.py` | ✅ | 156/156 текстур, 13.3 МБ → 3.7 МБ (−72%) |
+| `tools/convert_models.py` | ✅ | 262/262 модели в glTF, 223 365 треугольников |
+| `tools/preview_glb.py` | ✅ | Программный рендер модели в PNG для проверки |
+| `tools/preview_terrain.py` | ✅ | Рендер ландшафта для сверки с миникартой |
+| `build.py` | ✅ | Весь конвейер и публикация в оба клиента |
+| `web/` | ✅ | Просмотрщик мира на TypeScript + WebGPU |
+| `godot/` | ✅ | Проект Godot 4 — нативная сборка |
+| Движок: JASS VM | ⬜ | Этап 3 |
+| Движок: симуляция | ⬜ | Этап 4 |
 
 ## Структура
 
 ```
-tools/          конвейер извлечения и конвертации (Python, без зависимостей)
-  wc3/          библиотека форматов Warcraft III
+build.py        весь конвейер одной командой
+tools/          извлечение и конвертация (Python)
+  wc3/          библиотека форматов Warcraft III: mpq, blp, mdx, w3x, gltf
+web/            клиент на TypeScript + WebGPU (основной)
+godot/          проект Godot 4 (нативная сборка)
 docs/           анализ, архитектура, дорожная карта
   data/         машиночитаемые отчёты анализа
 build/          генерируемые артефакты (в git не хранятся)
 ```
+
+Оба клиента читают **один и тот же** результат конвейера и никогда не
+разбирают `.w3x` сами — иначе они неизбежно разойдутся по содержимому.
 
 ## Исходная карта
 
@@ -85,6 +101,7 @@ build/          генерируемые артефакты (в git не хра�
 - [01 — Анализ карты](docs/01-map-analysis.md) — что внутри и почему 1.26 не тянет
 - [02 — Архитектура движка](docs/02-architecture.md) — как устроен целевой рантайм
 - [03 — Дорожная карта](docs/03-roadmap.md) — этапы работ
+- [04 — Два клиента](docs/04-frontends.md) — web и Godot, что общее и что нет
 
 ---
 

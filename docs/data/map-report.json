@@ -48,7 +48,7 @@
   "units": {
     "count": 2401,
     "distinct": 300,
-    "heroes": 2310
+    "heroes": 10
   },
   "object_data": {
     "units": {

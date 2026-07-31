@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world.gd" id="1_world"]
+
+[node name="World" type="Node3D"]
+script = ExtResource("1_world")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.87, -0.35, 0.35, 0, 0.7, 0.71, -0.5, -0.62, 0.61, 0, 4000, 0)
+shadow_enabled = true
+light_energy = 1.1
+
+[node name="Camera" type="Camera3D" parent="."]
+far = 200000.0
+near = 32.0

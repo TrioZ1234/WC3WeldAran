@@ -1,0 +1,23 @@
+; Godot 4 project — native build target for War for WeldAran.
+;
+; Consumes exactly the same pipeline output as the web frontend
+; (data/terrain.bin, data/*.json, assets/models/*.glb, assets/textures/*).
+; Nothing here re-derives content from the .w3x.
+
+config_version=5
+
+[application]
+config/name="War for WeldAran"
+config/description="Standalone port of the Warcraft III map WFWA"
+run/main_scene="res://scenes/world.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+
+[display]
+window/size/viewport_width=1600
+window/size/viewport_height=900
+
+[rendering]
+renderer/rendering_method="forward_plus"
+lights_and_shadows/directional_shadow/size=4096
+; The map spans 61440x61440 world units, so the far plane must be generous.
+camera/depth_of_field/depth_of_field_bokeh_shape=0

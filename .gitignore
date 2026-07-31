@@ -21,3 +21,9 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Pipeline output staged into the frontends (symlinks or copies of build/)
+web/public/data
+web/public/assets
+godot/data
+godot/assets
