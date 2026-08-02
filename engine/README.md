@@ -14,7 +14,8 @@ node engine/cli/run-game.ts --seconds 300        # запуск игры: вре
 node engine/test/smoke.ts                        # регрессионный тест
 ```
 
-Нужен Node 18+ (на 22.6+ TypeScript исполняется напрямую, сборка не требуется).
+**Node 23.6 или новее** — с этой версии TypeScript исполняется напрямую, без
+сборки. На 22.6–23.5 нужен флаг: `node --experimental-strip-types file.ts`.
 Внешних зависимостей нет.
 
 ## Порядок загрузки

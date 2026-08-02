@@ -60,9 +60,10 @@ python3 tools/fetch_war3_art.py
 python3 tools/make_battle_demo.py            # -> build/battle.html
 ```
 
-Python 3.8+. Конвертация ассетов требует Pillow (`pip install Pillow`);
-всё остальное работает на стандартной библиотеке. Есть `Makefile` с теми же
-целями, если у вас есть `make`.
+Python 3.8+ и Node 23.6+ (с этой версии TypeScript исполняется напрямую).
+Конвертация ассетов требует Pillow (`pip install Pillow`); всё остальное
+работает на стандартной библиотеке. Есть `Makefile` с теми же целями, если
+у вас есть `make` — но на Windows он не запустится, там только `build.py`.
 
 ## Что уже работает
 
