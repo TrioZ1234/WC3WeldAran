@@ -44,6 +44,20 @@ python3 build.py путь/к/WFWA_v0.9.9q.w3x
 cd web && npm install && npm run dev     # http://localhost:5173
 
 # …или нативная сборка: открыть каталог godot/ в Godot 4.3+
+
+# Рантайм: подтянуть скрипты и таблицы Warcraft III (~4 МБ, в git не хранятся),
+# разрешить объекты карты против стоковых прототипов и прогнать скрипт карты
+python3 tools/fetch_war3_data.py
+python3 tools/export_stock.py build/war3 build/data
+node engine/cli/run-jass.ts build/extracted/war3map.j
+
+# Запуск игры: инициализация, ход времени, бой
+node engine/cli/run-game.ts --seconds 300
+node engine/cli/run-battle.ts --list        # стенд для проверки баланса
+
+# Бой в браузере: собрать страницу и открыть её (файл в git не хранится)
+python3 tools/fetch_war3_art.py
+python3 tools/make_battle_demo.py            # -> build/battle.html
 ```
 
 Python 3.8+. Конвертация ассетов требует Pillow (`pip install Pillow`);
@@ -71,8 +85,16 @@ Python 3.8+. Конвертация ассетов требует Pillow (`pip i
 | `build.py` | ✅ | Весь конвейер и публикация в оба клиента |
 | `web/` | ✅ | Просмотрщик мира на TypeScript + WebGPU |
 | `godot/` | ✅ | Проект Godot 4 — нативная сборка |
-| Движок: JASS VM | ⬜ | Этап 3 |
-| Движок: симуляция | ⬜ | Этап 4 |
+| `tools/wc3/slk.py` | ✅ | Чтение таблиц SYLK — стоковый баланс Warcraft III |
+| `tools/fetch_war3_data.py` | ✅ | Загрузка `common.j`, `Blizzard.j` и таблиц SLK (~4 МБ, в git не хранятся) |
+| `tools/export_stock.py` | ✅ | Разрешение объектов карты против стоковых прототипов — 1 320/1 320 |
+| `tools/analyze_assets.py` | ✅ | Замер зависимости от War3.mpq |
+| `tools/fetch_war3_art.py` | ✅ | Загрузка нужной графики — 919/922 ссылки, 39 МБ, вне git |
+| `tools/make_battle_demo.py` | ✅ | Сборка браузерного стенда боя из локальных данных |
+| `engine/jass/` | ✅ | Лексер, парсер, интерпретатор с приостанавливаемыми потоками |
+| `engine/sim/` | ◐ | Часы 32 Гц, таймеры, события, **бой на характеристиках карты** |
+| Движок: поиск пути | ⬜ | Юниты ходят по прямой, `war3map.wpm` не читается |
+| Движок: рендер и ввод | ⬜ | Клиенты пока рисуют кубы |
 
 ## Структура
 
@@ -80,6 +102,12 @@ Python 3.8+. Конвертация ассетов требует Pillow (`pip i
 build.py        весь конвейер одной командой
 tools/          извлечение и конвертация (Python)
   wc3/          библиотека форматов Warcraft III: mpq, blp, mdx, w3x, gltf
+engine/         рантайм (TypeScript)
+  jass/         лексер, парсер, интерпретатор, хендлы, функции контракта
+  sim/          часы 32 Гц, таймеры, события
+  cli/          прогон скрипта карты, запуск игры, отчёты
+  demo/         шаблон браузерного стенда боя (данные подставляются сборкой)
+  test/         регрессионный тест — 99 проверок
 web/            клиент на TypeScript + WebGPU (основной)
 godot/          проект Godot 4 (нативная сборка)
 docs/           анализ, архитектура, дорожная карта
@@ -102,6 +130,8 @@ build/          генерируемые артефакты (в git не хра�
 - [02 — Архитектура движка](docs/02-architecture.md) — как устроен целевой рантайм
 - [03 — Дорожная карта](docs/03-roadmap.md) — этапы работ
 - [04 — Два клиента](docs/04-frontends.md) — web и Godot, что общее и что нет
+- [05 — Запуск без Warcraft III](docs/05-standalone.md) — три барьера до самостоятельной игры
+- [06 — Направление продукта](docs/06-product.md) — одиночная игра, онлайн, независимость от WC3
 
 ---
 

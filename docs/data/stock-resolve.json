@@ -1,0 +1,68 @@
+{
+  "fieldCodes": 1024,
+  "tables": {
+    "UnitData": 836,
+    "UnitBalance": 836,
+    "UnitUI": 836,
+    "UnitWeapons": 837,
+    "UnitAbilities": 836,
+    "ItemData": 273,
+    "AbilityData": 799,
+    "AbilityBuffData": 237,
+    "DestructableData": 247,
+    "UpgradeData": 89,
+    "DoodadData": 469
+  },
+  "categories": {
+    "units": {
+      "prototypes": 837,
+      "fields": 125964,
+      "resolved": 473,
+      "withPrototype": 473,
+      "inheritedFields": 70799
+    },
+    "items": {
+      "prototypes": 273,
+      "fields": 7990,
+      "resolved": 84,
+      "withPrototype": 84,
+      "inheritedFields": 2449
+    },
+    "abilities": {
+      "prototypes": 799,
+      "fields": 6392,
+      "resolved": 352,
+      "withPrototype": 352,
+      "inheritedFields": 2816
+    },
+    "buffs": {
+      "prototypes": 237,
+      "fields": 474,
+      "resolved": 19,
+      "withPrototype": 19,
+      "inheritedFields": 38
+    },
+    "destructables": {
+      "prototypes": 247,
+      "fields": 12004,
+      "resolved": 101,
+      "withPrototype": 101,
+      "inheritedFields": 4942
+    },
+    "upgrades": {
+      "prototypes": 89,
+      "fields": 1478,
+      "resolved": 65,
+      "withPrototype": 65,
+      "inheritedFields": 1044
+    },
+    "doodads": {
+      "prototypes": 469,
+      "fields": 13603,
+      "resolved": 226,
+      "withPrototype": 226,
+      "inheritedFields": 6554
+    }
+  },
+  "missingBases": []
+}
