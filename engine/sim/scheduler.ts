@@ -106,6 +106,24 @@ export class Clock {
    * The list is snapshotted before any callback runs, so a handler that starts
    * new timers cannot extend the current tick into an infinite loop.
    */
+  /**
+   * Every repeating timer, as period and time left.
+   *
+   * The HUD needs this: the map's city spawn runs on a 90-second periodic timer,
+   * and a countdown to the next wave is one of the few numbers a player watches
+   * constantly. Reading it from the clock keeps one source of truth - a second
+   * counter maintained alongside would drift, and the visible one would be wrong.
+   */
+  periodic(): Array<{ period: number; remaining: number }> {
+    const found: Array<{ period: number; remaining: number }> = [];
+    for (const timer of this.timers.values()) {
+      if (timer.periodTicks === null) continue;
+      const left = timer.paused ? timer.remaining : Math.max(0, timer.dueTick - this.tick);
+      found.push({ period: timer.periodTicks * TICK_SECONDS, remaining: left * TICK_SECONDS });
+    }
+    return found;
+  }
+
   takeDue(): ScheduledTimer[] {
     const due: ScheduledTimer[] = [];
     for (const timer of this.timers.values()) {
