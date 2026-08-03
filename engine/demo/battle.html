@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>War for WeldAran — симуляция боя</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#11141b; --line:#1e2430; --line2:#2a3344;
+    --ink:#e6eaf2; --dim:#7d8799; --faint:#4d5666;
+    --a:#4da3ff; --b:#ff6b4d; --gold:#f0b34a; --ok:#4ade80; --dead:#5a2b2b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:400 14px/1.5 Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  header{
+    border-bottom:1px solid var(--line); padding:14px 22px;
+    display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+    background:linear-gradient(180deg,#12161f,#0d1016);
+  }
+  header h1{font-size:15px; font-weight:600; letter-spacing:.2px}
+  header .sub{font-size:12px; color:var(--dim)}
+  header .badge{
+    margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px;
+    color:var(--ok); border:1px solid #1d3a2a; background:#0e1c14;
+    padding:3px 9px; border-radius:3px;
+  }
+
+  main{flex:1; display:grid; grid-template-columns:296px 1fr 268px; min-height:0}
+  @media (max-width:1100px){ main{grid-template-columns:1fr} aside{display:none} }
+
+  aside{background:var(--panel); overflow-y:auto; border-right:1px solid var(--line)}
+  aside.right{border-right:0; border-left:1px solid var(--line)}
+  .sec{padding:14px 16px; border-bottom:1px solid var(--line)}
+  .sec h2{
+    font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--faint); margin-bottom:11px;
+  }
+
+  .side-tag{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px}
+  .roster{display:flex; flex-direction:column; gap:3px}
+  .u{
+    display:flex; align-items:center; gap:9px; padding:4px 7px; border-radius:4px;
+    cursor:pointer; border:1px solid transparent; text-align:left; background:none;
+    color:inherit; font:inherit; width:100%;
+  }
+  .u:hover{background:#171c26}
+  .u.sel-a{border-color:var(--a); background:#0f1e2e}
+  .u.sel-b{border-color:var(--b); background:#2a1410}
+  .u img{width:26px; height:26px; border-radius:3px; image-rendering:auto; flex:none;
+         border:1px solid #2b3444}
+  .u .nm{font-size:12.5px; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .u .st{font-size:10.5px; color:var(--dim); font-family:'JetBrains Mono',monospace}
+
+  .ctl{display:flex; flex-direction:column; gap:11px}
+  .row{display:grid; grid-template-columns:1fr auto; align-items:center; gap:4px 9px}
+  .row label{font-size:11.5px; color:var(--dim); grid-column:1 / -1; margin-bottom:-2px}
+  .row input[type=range]{grid-column:1}
+  input[type=range]{width:100%; accent-color:var(--gold); height:3px}
+  .val{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--gold);
+       min-width:34px; text-align:right; grid-column:2}
+  button.go{
+    width:100%; padding:9px; border-radius:4px; border:1px solid var(--line2);
+    background:#1a2130; color:var(--ink); font:500 13px Inter,sans-serif; cursor:pointer;
+  }
+  button.go:hover{background:#222b3d; border-color:#3a4658}
+  button.go.primary{background:var(--gold); color:#1a1206; border-color:var(--gold); font-weight:600}
+  button.go.primary:hover{background:#ffc55e}
+
+  .stage{position:relative; min-width:0; background:
+    radial-gradient(ellipse at 50% 45%, #131923 0%, #0a0c10 72%);}
+  canvas{display:block; width:100%; height:100%}
+
+  .hud{
+    position:absolute; top:18px; left:50%; transform:translateX(-50%);
+    display:flex; gap:22px; padding:9px 20px; border-radius:5px;
+    background:rgba(10,12,16,.86); border:1px solid var(--line);
+    backdrop-filter:blur(6px); font-family:'JetBrains Mono',monospace; font-size:12px;
+  }
+  .hud b{display:block; font-size:9px; letter-spacing:.12em; color:var(--faint);
+         font-weight:600; text-transform:uppercase; margin-bottom:2px}
+  .hud .n{font-size:15px; font-weight:500}
+
+  .matchup{
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--dim);
+    background:rgba(10,12,16,.86); border:1px solid var(--line);
+    padding:7px 15px; border-radius:4px; white-space:nowrap;
+  }
+  .matchup .hi{color:var(--gold)}
+
+  .verdict{
+    position:absolute; inset:0; display:none; place-items:center;
+    background:transparent; align-content:end; padding-bottom:64px; pointer-events:none;
+  }
+  .verdict.on{display:grid}
+  .verdict .card{text-align:center; padding:16px 34px; border:1px solid var(--line2);
+    border-radius:6px; background:rgba(14,18,25,.94); pointer-events:auto; cursor:pointer}
+  .verdict .who{font-size:18px; font-weight:600; margin-bottom:4px}
+  .verdict .det{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim)}
+
+  .feed{display:flex; flex-direction:column; gap:5px; font-family:'JetBrains Mono',monospace; font-size:11px}
+  .feed div{color:var(--dim); display:flex; gap:7px}
+  .feed .t{color:var(--faint); flex:none}
+  .kv{display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace;
+      font-size:12px; padding:3px 0}
+  .kv span:first-child{color:var(--dim)}
+  .note{font-size:11.5px; color:var(--faint); line-height:1.55}
+  .note code{color:var(--dim); font-family:'JetBrains Mono',monospace; font-size:11px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>War for WeldAran</h1>
+  <span class="sub">симуляция боя на собственном движке · характеристики и таблица урона из карты</span>
+  <span class="badge" id="det">детерминизм: проверяется</span>
+</header>
+
+<main>
+  <aside>
+    <div class="sec">
+      <h2><span class="side-tag" style="background:var(--a)"></span>Сторона A</h2>
+      <div class="roster" id="rosterA"></div>
+    </div>
+  </aside>
+
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud">
+      <div><b>Время</b><div class="n" id="hTime">00:00</div></div>
+      <div><b>A</b><div class="n" id="hA" style="color:var(--a)">0</div></div>
+      <div><b>B</b><div class="n" id="hB" style="color:var(--b)">0</div></div>
+      <div><b>Атак</b><div class="n" id="hAtk">0</div></div>
+      <div><b>Урон</b><div class="n" id="hDmg">0</div></div>
+    </div>
+    <div class="matchup" id="matchup"></div>
+    <div class="verdict" id="verdict"><div class="card">
+      <div class="who" id="vWho"></div>
+      <div class="det" id="vDet"></div>
+    </div></div>
+  </div>
+
+  <aside class="right">
+    <div class="sec">
+      <h2>Управление</h2>
+      <div class="ctl">
+        <div class="row"><label>Юнитов в отряде</label>
+          <input type="range" id="count" min="1" max="24" value="10">
+          <span class="val" id="countV">10</span></div>
+        <div class="row"><label>Скорость</label>
+          <input type="range" id="speed" min="1" max="16" value="2">
+          <span class="val" id="speedV">2x</span></div>
+        <button class="go primary" id="restart">Начать бой заново</button>
+        <button class="go" id="pause">Пауза</button>
+      </div>
+    </div>
+    <div class="sec">
+      <h2><span class="side-tag" style="background:var(--b)"></span>Сторона B</h2>
+      <div class="roster" id="rosterB"></div>
+    </div>
+    <div class="sec">
+      <h2>Телеметрия</h2>
+      <div class="kv"><span>тик (32 Гц)</span><span id="kTick">0</span></div>
+      <div class="kv"><span>смертей</span><span id="kDeath">0</span></div>
+      <div class="kv"><span>контрольная сумма</span><span id="kHash">—</span></div>
+    </div>
+    <div class="sec">
+      <h2>События</h2>
+      <div class="feed" id="feed"></div>
+    </div>
+    <div class="sec">
+      <p class="note">
+        Вся арифметика — фиксированная точка (1 единица мира = 256), корень
+        целочисленный, ГПСЧ детерминированный. Ни <code>Math.random</code>,
+        ни <code>Math.sqrt</code>. При одинаковом посеве бой повторяется
+        побитово — это условие lockstep на 12 игроков.
+      </p>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ---- данные карты подставляются сборщиком ---- */
+__DATA__
+
+/* ============================================================
+   Порт боевой симуляции движка. Те же алгоритмы, что в
+   engine/sim/{fixed,combat,units}.ts — целочисленная арифметика,
+   чтобы результат совпадал с серверным прогоном.
+   ============================================================ */
+const ONE = 256;
+const fx = n => Math.round(n * ONE) | 0;
+const unfx = n => n / ONE;
+const fxMul = (a, b) => Math.trunc((a * b) / ONE);
+const fxDiv = (a, b) => (b === 0 ? 0 : Math.trunc((a * ONE) / b));
+
+function isqrt(v){
+  if (v <= 0) return 0;
+  if (v < 2) return v;
+  let g = v, n = Math.trunc((g + 1) / 2);
+  while (n < g){ g = n; n = Math.trunc((g + Math.trunc(v / g)) / 2); }
+  return g;
+}
+const dist2 = (ax, ay, bx, by) => { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; };
+
+const ARMOR = ["small","medium","large","fort","normal","hero","divine","none"];
+const ARMOR_ALIAS = {light:"small",heavy:"large",fortified:"fort",flesh:"normal",
+  metal:"normal",stone:"normal",wood:"normal",ethereal:"normal"};
+const normArmor = v => { const k = String(v||"normal").toLowerCase();
+  return ARMOR.includes(k) ? k : (ARMOR_ALIAS[k] || "normal"); };
+
+/** Множитель «тип атаки против типа брони» — из war3mapMisc.txt карты. */
+function multiplier(attack, armor){
+  const row = DAMAGE_TABLE[attack] || DAMAGE_TABLE.normal;
+  const i = ARMOR.indexOf(armor);
+  return Math.round((row && row[i >= 0 ? i : 4] || 1) * ONE);
+}
+/** Броня Warcraft III: 6 % за очко с убывающей отдачей. */
+function armorMul(armor){
+  const s = fxMul(Math.abs(armor) * ONE, Math.round(0.06 * ONE));
+  const base = fxDiv(ONE, ONE + s);
+  return armor >= 0 ? base : 2 * ONE - base;
+}
+
+class Field {
+  constructor(a, b, count, seed = 0x5eed){
+    this.seed = seed >>> 0;
+    this.tick = 0; this.attacks = 0; this.deaths = 0; this.damage = 0;
+    this.units = []; this.hits = []; this.feed = [];
+    let id = 1;
+    const make = (t, owner, x, y) => this.units.push({
+      id: id++, t, owner, x: fx(x), y: fx(y),
+      hp: t.hp * ONE, maxHp: t.hp * ONE, cd: 0, target: null, alive: true,
+      ox: fx(owner === 1 ? 620 : -620), oy: fx(0), flash: 0,
+    });
+    for (let i = 0; i < count; i++){
+      const col = i % 4, row = (i / 4) | 0;
+      make(a, 1, -640 - col * 74, -110 + row * 74);
+      make(b, 2,  640 + col * 74, -110 + row * 74);
+    }
+  }
+  roll(lo, hi){
+    if (hi <= lo) return lo;
+    this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0;
+    return lo + (this.seed % (hi - lo + 1));
+  }
+  alive(owner){ let n = 0; for (const u of this.units) if (u.alive && u.owner === owner) n++; return n; }
+
+  step(){
+    this.tick++;
+    for (const u of this.units){
+      if (!u.alive) continue;
+      if (u.cd > 0) u.cd--;
+      if (u.flash > 0) u.flash--;
+      if (u.target && !u.target.alive) u.target = null;
+
+      if (!u.target){
+        const r = fx(u.t.acquire); let best = null, bd = r * r;
+        for (const o of this.units){
+          if (!o.alive || o.owner === u.owner) continue;
+          const d = dist2(u.x, u.y, o.x, o.y);
+          if (d <= bd){ bd = d; best = o; }
+        }
+        u.target = best;
+      }
+
+      if (u.target){
+        const reach = fx(u.t.range) + fx(72);
+        if (dist2(u.x, u.y, u.target.x, u.target.y) > reach * reach){
+          this.move(u, u.target.x, u.target.y);
+        } else if (u.cd === 0){
+          this.strike(u, u.target);
+        }
+      } else {
+        this.move(u, u.ox, u.oy);
+      }
+    }
+    for (let i = this.hits.length - 1; i >= 0; i--){
+      const h = this.hits[i]; h.life--; if (h.life <= 0) this.hits.splice(i, 1);
+    }
+  }
+  move(u, tx, ty){
+    const sp = Math.trunc(fx(u.t.speed) / 32);
+    if (sp <= 0) return;
+    const dx = tx - u.x, dy = ty - u.y, d = isqrt(dx*dx + dy*dy);
+    if (d === 0) return;
+    if (d <= sp){ u.x = tx; u.y = ty; return; }
+    u.x += Math.trunc((dx * sp) / d);
+    u.y += Math.trunc((dy * sp) / d);
+  }
+  strike(a, d){
+    let raw = a.t.base;
+    for (let i = 0; i < a.t.dice; i++) raw += a.t.sides > 0 ? this.roll(1, a.t.sides) : 0;
+    let dmg = raw * ONE;
+    dmg = fxMul(dmg, multiplier(a.t.attackType, normArmor(d.t.armorType)));
+    dmg = fxMul(dmg, armorMul(d.t.armor));
+    if (dmg < 0) dmg = 0;
+
+    a.cd = Math.max(1, Math.round(a.t.cooldown * 32));
+    this.attacks++; this.damage += dmg;
+    d.hp -= dmg; d.flash = 5;
+    this.hits.push({ x: d.x, y: d.y, life: 16, n: Math.round(dmg / ONE), owner: a.owner });
+
+    if (d.hp <= 0){
+      d.hp = 0; d.alive = false; d.target = null; this.deaths++;
+      this.feed.unshift({ t: this.tick, txt: `${a.t.name} → ${d.t.name}` });
+      if (this.feed.length > 9) this.feed.pop();
+    } else if (!d.target){
+      d.target = a;
+    }
+  }
+  /** Дешёвая контрольная сумма состояния — расхождение видно сразу. */
+  hash(){
+    let h = 2166136261 >>> 0;
+    for (const u of this.units){
+      h ^= (u.x ^ u.y ^ u.hp ^ (u.alive ? 1 : 0)) >>> 0;
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h.toString(16).padStart(8, "0");
+  }
+}
+
+/* ============================================================ */
+
+const icons = {};
+for (const u of UNITS){ const im = new Image(); im.src = u.icon; icons[u.id] = im; }
+
+let sel = { a: UNITS.find(u => u.id === "h01R") || UNITS[0],
+            b: UNITS.find(u => u.id === "h01V") || UNITS[1] };
+let field = null, running = true, speed = 2, count = 10, finished = false;
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+function roster(el, side){
+  el.innerHTML = "";
+  for (const u of UNITS){
+    const b = document.createElement("button");
+    b.className = "u" + (sel[side].id === u.id ? " sel-" + side : "");
+    b.innerHTML = `<img src="${u.icon}" alt=""><div style="min-width:0">
+      <div class="nm">${u.name}</div>
+      <div class="st">${u.hp} hp · ${u.attackType}/${normArmor(u.armorType)} · ${u.base}+${u.dice}d${u.sides}</div>
+    </div>`;
+    b.onclick = () => { sel[side] = u; drawRosters(); restart(); };
+    el.appendChild(b);
+  }
+}
+function drawRosters(){ roster($("rosterA"), "a"); roster($("rosterB"), "b"); }
+
+function restart(){
+  field = new Field(sel.a, sel.b, count);
+  finished = false;
+  $("verdict").classList.remove("on");
+  const m1 = (multiplier(sel.a.attackType, normArmor(sel.b.armorType)) / ONE).toFixed(2);
+  const m2 = (multiplier(sel.b.attackType, normArmor(sel.a.armorType)) / ONE).toFixed(2);
+  $("matchup").innerHTML =
+    `A ${sel.a.attackType} → ${normArmor(sel.b.armorType)} <span class="hi">${m1}x</span>` +
+    ` &nbsp;·&nbsp; B ${sel.b.attackType} → ${normArmor(sel.a.armorType)} <span class="hi">${m2}x</span>` +
+    ` &nbsp;·&nbsp; броня A ${sel.a.armor} · B ${sel.b.armor}`;
+}
+
+/* Повтор с тем же посевом обязан дать ту же контрольную сумму. */
+function verifyDeterminism(){
+  const runOnce = () => {
+    const f = new Field(sel.a, sel.b, 8);
+    for (let i = 0; i < 32 * 25; i++) f.step();
+    return `${f.attacks}/${f.deaths}/${f.damage}/${f.hash()}`;
+  };
+  const ok = runOnce() === runOnce();
+  const el = $("det");
+  el.textContent = ok ? "детерминизм: повтор совпал" : "детерминизм: РАСХОЖДЕНИЕ";
+  if (!ok){ el.style.color = "#ff6b4d"; el.style.borderColor = "#5a2b2b"; el.style.background = "#1c0e0e"; }
+}
+
+function fit(){
+  const r = cv.parentElement.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return r;
+}
+
+function render(){
+  const r = fit();
+  const W = r.width, H = r.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const scale = Math.min(W / 1500, H / 720);
+  const cx = W / 2, cy = H / 2;
+  const sx = wx => cx + unfx(wx) * scale;
+  const sy = wy => cy + unfx(wy) * scale;
+
+  // сетка
+  ctx.strokeStyle = "#141a24"; ctx.lineWidth = 1;
+  for (let g = -900; g <= 900; g += 150){
+    ctx.beginPath(); ctx.moveTo(sx(fx(g)), 0); ctx.lineTo(sx(fx(g)), H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, sy(fx(g))); ctx.lineTo(W, sy(fx(g))); ctx.stroke();
+  }
+
+  if (!field) return;
+
+  // линии к целям
+  ctx.lineWidth = 1;
+  for (const u of field.units){
+    if (!u.alive || !u.target || !u.target.alive) continue;
+    const reach = fx(u.t.range) + fx(72);
+    if (dist2(u.x, u.y, u.target.x, u.target.y) > reach * reach) continue;
+    ctx.strokeStyle = u.owner === 1 ? "rgba(77,163,255,.30)" : "rgba(255,107,77,.30)";
+    ctx.beginPath(); ctx.moveTo(sx(u.x), sy(u.y)); ctx.lineTo(sx(u.target.x), sy(u.target.y)); ctx.stroke();
+  }
+
+  // юниты
+  for (const u of field.units){
+    const x = sx(u.x), y = sy(u.y);
+    const col = u.owner === 1 ? "#4da3ff" : "#ff6b4d";
+    const R = 19;
+
+    if (!u.alive){
+      ctx.globalAlpha = .22;
+      ctx.fillStyle = "#5a2b2b";
+      ctx.beginPath(); ctx.arc(x, y, R * .7, 0, 6.2832); ctx.fill();
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.beginPath(); ctx.arc(x, y + 2, R + 1, 0, 6.2832); ctx.fill();
+
+    const im = icons[u.t.id];
+    if (im && im.complete && im.naturalWidth){
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.clip();
+      ctx.drawImage(im, x - R, y - R, R * 2, R * 2);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#232c3a";
+      ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill();
+    }
+
+    ctx.strokeStyle = u.flash > 0 ? "#ffffff" : col;
+    ctx.lineWidth = u.flash > 0 ? 3 : 2;
+    ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.stroke();
+
+    const frac = Math.max(0, u.hp / u.maxHp);
+    const bw = 38;
+    ctx.fillStyle = "#0c0f15";
+    ctx.fillRect(x - bw / 2, y + R + 4, bw, 4);
+    ctx.fillStyle = frac > .5 ? "#4ade80" : frac > .25 ? "#f0b34a" : "#ff5a4d";
+    ctx.fillRect(x - bw / 2, y + R + 4, bw * frac, 4);
+  }
+
+  // всплывающий урон
+  ctx.font = "600 13px 'JetBrains Mono', monospace";
+  ctx.textAlign = "center";
+  for (const h of field.hits){
+    const t = 1 - h.life / 16;
+    ctx.globalAlpha = h.life / 16;
+    ctx.fillStyle = h.owner === 1 ? "#9ecbff" : "#ffb0a0";
+    ctx.fillText(String(h.n), sx(h.x), sy(h.y) - 22 - t * 18);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function loop(){
+  if (running && field && !finished){
+    for (let i = 0; i < speed; i++){
+      field.step();
+      if (field.alive(1) === 0 || field.alive(2) === 0 || field.tick > 32 * 300){ finished = true; break; }
+    }
+  }
+  if (field){
+    const s = Math.floor(field.tick / 32);
+    $("hTime").textContent = String((s / 60) | 0).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+    $("hA").textContent = field.alive(1);
+    $("hB").textContent = field.alive(2);
+    $("hAtk").textContent = field.attacks;
+    $("hDmg").textContent = Math.round(field.damage / ONE).toLocaleString("ru-RU");
+    $("kTick").textContent = field.tick;
+    $("kDeath").textContent = field.deaths;
+    $("kHash").textContent = field.hash();
+    $("feed").innerHTML = field.feed.map(f =>
+      `<div><span class="t">${String(Math.floor(f.t/32)).padStart(3," ")}s</span><span>${f.txt}</span></div>`).join("");
+
+    if (finished && !$("verdict").classList.contains("on")){
+      const a = field.alive(1), b = field.alive(2);
+      $("vWho").textContent = a === b ? "Ничья" : a > b ? sel.a.name + " побеждает" : sel.b.name + " побеждает";
+      $("vWho").style.color = a === b ? "#e6eaf2" : a > b ? "#4da3ff" : "#ff6b4d";
+      $("vDet").textContent =
+        `выжило ${a} : ${b}  ·  ${field.attacks} атак  ·  ${field.deaths} смертей  ·  ` +
+        `${Math.round(field.damage / ONE).toLocaleString("ru-RU")} урона  ·  ${(field.tick/32).toFixed(1)}s`;
+      $("verdict").classList.add("on");
+      clearTimeout(window.__again);
+      window.__again = setTimeout(restart, 4500);   // не заставлять кликать
+    }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+$("count").oninput = e => { count = +e.target.value; $("countV").textContent = count; restart(); };
+$("speed").oninput = e => { speed = +e.target.value; $("speedV").textContent = speed + "x"; };
+$("restart").onclick = restart;
+$("pause").onclick = e => { running = !running; e.target.textContent = running ? "Пауза" : "Продолжить"; };
+$("verdict").onclick = restart;
+window.addEventListener("resize", render);
+
+drawRosters();
+verifyDeterminism();
+restart();
+loop();
+</script>
+</body>
+</html>
