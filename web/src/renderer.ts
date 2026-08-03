@@ -24,6 +24,7 @@ struct Uniforms {
   palette        : array<vec4<f32>, 16>,
   sunDirection   : vec4<f32>,
   waterColour    : vec4<f32>,
+  unitPalette    : array<vec4<f32>, 16>,
 };
 @group(0) @binding(0) var<uniform> u : Uniforms;
 
@@ -71,6 +72,7 @@ struct Uniforms {
   palette        : array<vec4<f32>, 16>,
   sunDirection   : vec4<f32>,
   waterColour    : vec4<f32>,
+  unitPalette    : array<vec4<f32>, 16>,
 };
 @group(0) @binding(0) var<uniform> u : Uniforms;
 
@@ -96,7 +98,7 @@ fn vs(
   var out : VSOut;
   out.position = u.viewProjection * vec4<f32>(origin + rotated, 1.0);
   out.shade = 0.55 + 0.45 * corner.z;
-  out.tint = u.palette[u32(clamp(colour, 0.0, 15.0))].rgb;
+  out.tint = u.unitPalette[u32(clamp(colour, 0.0, 15.0))].rgb;
   return out;
 }
 
@@ -117,7 +119,9 @@ const BOX_INDICES = new Uint16Array([
   1, 5, 6, 1, 6, 2, 2, 6, 7, 2, 7, 3, 3, 7, 4, 3, 4, 0,
 ]);
 
-const UNIFORM_FLOATS = 16 + 16 * 4 + 4 + 4;
+// viewProjection, terrain palette, sun, water, unit palette.
+const UNIFORM_FLOATS = 16 + 16 * 4 + 4 + 4 + 16 * 4;
+const UNIT_PALETTE_OFFSET = 88;
 
 export class Renderer {
   private device!: GPUDevice;
@@ -137,7 +141,8 @@ export class Renderer {
 
   private boxVertices!: GPUBuffer;
   private boxIndices!: GPUBuffer;
-  private batches: { buffer: GPUBuffer; count: number; label: string }[] = [];
+  /** `capacity` is bytes; only dynamic batches use it, static ones fit exactly. */
+  private batches: { buffer: GPUBuffer; count: number; label: string; capacity: number }[] = [];
 
   constructor(private canvas: HTMLCanvasElement) {}
 
@@ -255,6 +260,7 @@ export class Renderer {
         buffer: this.upload(batch.data, GPUBufferUsage.VERTEX),
         count: batch.count,
         label: batch.label,
+        capacity: batch.data.byteLength,
       }));
   }
 
@@ -262,6 +268,58 @@ export class Renderer {
     for (let i = 0; i < 16; i++) {
       const c = colours[i] ?? [0.5, 0.5, 0.5];
       this.uniformData.set([c[0], c[1], c[2], 1], 16 + i * 4);
+    }
+  }
+
+  /**
+   * Colours for instanced objects, indexed by the batch's colour column.
+   *
+   * Separate from the terrain palette because the terrain already claims all
+   * sixteen of its slots for tilesets. Sharing them forced a placed object to
+   * borrow whatever hue a tileset happened to have - acceptable in a viewer, wrong
+   * in a game, where the colour of a unit is its owner's identity and may not
+   * shift because the map gained a ground texture.
+   */
+  setUnitPalette(colours: [number, number, number][]): void {
+    for (let i = 0; i < 16; i++) {
+      const c = colours[i] ?? [0.6, 0.6, 0.6];
+      this.uniformData.set([c[0], c[1], c[2], 1], UNIT_PALETTE_OFFSET + i * 4);
+    }
+  }
+
+  /**
+   * Create or refill a batch whose contents change every frame.
+   *
+   * `setInstanceBatches` allocates a buffer per call, which is right for placed
+   * doodads - uploaded once, never touched again - and a leak for live units,
+   * where it would allocate sixty buffers a second. This reuses one buffer and
+   * grows it only when the army does, with headroom so that a spawn wave does not
+   * force a reallocation.
+   */
+  writeDynamicBatch(label: string, data: Float32Array, count: number): void {
+    const floatsPerInstance = 8;
+    const needed = Math.max(1, count) * floatsPerInstance * 4;
+    let batch = this.batches.find((entry) => entry.label === label);
+
+    if (!batch || batch.capacity < needed) {
+      const capacity = Math.max(needed * 2, 256 * floatsPerInstance * 4);
+      const buffer = this.device.createBuffer({
+        size: capacity,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+      if (batch) {
+        batch.buffer.destroy();
+        batch.buffer = buffer;
+        batch.capacity = capacity;
+      } else {
+        batch = { buffer, count, label, capacity };
+        this.batches.push(batch);
+      }
+    }
+
+    batch.count = count;
+    if (count > 0) {
+      this.device.queue.writeBuffer(batch.buffer, 0, data, 0, count * floatsPerInstance);
     }
   }
 

@@ -43,6 +43,40 @@ def run(label: str, args: list) -> None:
     print(f"--- {label} done in {time.time() - started:.1f}s")
 
 
+def stage_scripts() -> None:
+    """Copy the JASS scripts and the damage table into the data directory.
+
+    The web client runs the map's own script in a worker, so it needs
+    `common.j`, `Blizzard.j`, `war3map.j` and `war3mapMisc.txt` over HTTP. They
+    are copied into `build/data/scripts/` rather than staged separately, so the
+    single symlink each frontend already has continues to cover everything.
+
+    Missing files are skipped rather than fatal: `common.j` and `Blizzard.j` come
+    from `tools/fetch_war3_data.py`, which is a separate, optional step.
+    """
+    target = os.path.join(DATA, "scripts")
+    sources = [
+        os.path.join(EXTRACT, "war3map.j"),
+        os.path.join(EXTRACT, "war3mapMisc.txt"),
+        os.path.join(BUILD, "war3", "common.j"),
+        os.path.join(BUILD, "war3", "Blizzard.j"),
+    ]
+    present = [path for path in sources if os.path.isfile(path)]
+    if not present:
+        return
+
+    os.makedirs(target, exist_ok=True)
+    for path in present:
+        shutil.copy2(path, os.path.join(target, os.path.basename(path)))
+    print(f"\n=== scripts " + "=" * 53)
+    print(f"  {len(present)}/{len(sources)} files -> {os.path.relpath(target, ROOT)}")
+    for path in sources:
+        if path not in present:
+            print(f"  missing {os.path.relpath(path, ROOT)}")
+    if not os.path.isfile(os.path.join(BUILD, "war3", "common.j")):
+        print("  run tools/fetch_war3_data.py to let the browser run the map's own script")
+
+
 def stage() -> None:
     """Publish build output into both frontends.
 
@@ -76,6 +110,7 @@ def main() -> int:
     stage_only = "--stage-only" in sys.argv
 
     if stage_only:
+        stage_scripts()
         stage()
         return 0
 
@@ -105,6 +140,7 @@ def main() -> int:
                                "--textures", os.path.join(ASSETS, "textures"),
                                "--manifest", os.path.join(ASSETS, "models.json")])
 
+    stage_scripts()
     stage()
     print(f"\nbuild complete in {time.time() - started:.1f}s")
     print("  web   : cd web && npm install && npm run dev")

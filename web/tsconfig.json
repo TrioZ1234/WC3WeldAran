@@ -3,6 +3,10 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    // The engine imports its own modules with explicit .ts extensions so that
+    // Node 23 can execute them directly from the CLI. The web client imports the
+    // same files, so it has to accept the same spelling.
+    "allowImportingTsExtensions": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["@webgpu/types", "vite/client"],
     "strict": true,

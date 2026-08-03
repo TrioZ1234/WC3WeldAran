@@ -50,6 +50,66 @@ export function multiply(a: Mat4, b: Mat4): Mat4 {
   return out;
 }
 
+/**
+ * General 4x4 inverse.
+ *
+ * Needed to turn a mouse position back into a world point: giving an order means
+ * answering "where on the ground is this pixel", and that is the only way to ask.
+ * A shortcut inverse for rigid transforms will not do, because the matrix being
+ * inverted includes the perspective projection.
+ */
+export function invert(m: Mat4): Mat4 | null {
+  const a = m;
+  const b = new Float32Array(16);
+
+  const s0 = a[0] * a[5] - a[4] * a[1];
+  const s1 = a[0] * a[6] - a[4] * a[2];
+  const s2 = a[0] * a[7] - a[4] * a[3];
+  const s3 = a[1] * a[6] - a[5] * a[2];
+  const s4 = a[1] * a[7] - a[5] * a[3];
+  const s5 = a[2] * a[7] - a[6] * a[3];
+
+  const c5 = a[10] * a[15] - a[14] * a[11];
+  const c4 = a[9] * a[15] - a[13] * a[11];
+  const c3 = a[9] * a[14] - a[13] * a[10];
+  const c2 = a[8] * a[15] - a[12] * a[11];
+  const c1 = a[8] * a[14] - a[12] * a[10];
+  const c0 = a[8] * a[13] - a[12] * a[9];
+
+  const determinant = s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0;
+  if (determinant === 0) return null;
+  const d = 1 / determinant;
+
+  b[0] = (a[5] * c5 - a[6] * c4 + a[7] * c3) * d;
+  b[1] = (-a[1] * c5 + a[2] * c4 - a[3] * c3) * d;
+  b[2] = (a[13] * s5 - a[14] * s4 + a[15] * s3) * d;
+  b[3] = (-a[9] * s5 + a[10] * s4 - a[11] * s3) * d;
+  b[4] = (-a[4] * c5 + a[6] * c2 - a[7] * c1) * d;
+  b[5] = (a[0] * c5 - a[2] * c2 + a[3] * c1) * d;
+  b[6] = (-a[12] * s5 + a[14] * s2 - a[15] * s1) * d;
+  b[7] = (a[8] * s5 - a[10] * s2 + a[11] * s1) * d;
+  b[8] = (a[4] * c4 - a[5] * c2 + a[7] * c0) * d;
+  b[9] = (-a[0] * c4 + a[1] * c2 - a[3] * c0) * d;
+  b[10] = (a[12] * s4 - a[13] * s2 + a[15] * s0) * d;
+  b[11] = (-a[8] * s4 + a[9] * s2 - a[11] * s0) * d;
+  b[12] = (-a[4] * c3 + a[5] * c1 - a[6] * c0) * d;
+  b[13] = (a[0] * c3 - a[1] * c1 + a[2] * c0) * d;
+  b[14] = (-a[12] * s3 + a[13] * s1 - a[14] * s0) * d;
+  b[15] = (a[8] * s3 - a[9] * s1 + a[10] * s0) * d;
+  return b;
+}
+
+/** Project a world point to normalised device coordinates plus depth. */
+export function project(m: Mat4, x: number, y: number, z: number): [number, number, number] {
+  const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+  if (w === 0) return [0, 0, -1];
+  return [
+    (m[0] * x + m[4] * y + m[8] * z + m[12]) / w,
+    (m[1] * x + m[5] * y + m[9] * z + m[13]) / w,
+    w,
+  ];
+}
+
 const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a: number[], b: number[]) => [
   a[1] * b[2] - a[2] * b[1],
@@ -87,6 +147,44 @@ export class OrbitCamera {
   viewProjection(aspect: number): Mat4 {
     const view = lookAt(this.eye, this.target, [0, 0, 1]);
     return multiply(perspective(this.fov, aspect, this.near, this.far), view);
+  }
+
+  /**
+   * Where a screen point meets a horizontal plane, in world coordinates.
+   *
+   * `ndc` is the pointer in normalised device coordinates: -1..1 with Y up. The
+   * plane is horizontal at `groundZ` rather than the true terrain surface, which
+   * costs a little accuracy on steep slopes and buys a closed-form answer instead
+   * of a ray march through 231 361 tilepoints on every click.
+   */
+  groundPoint(
+    ndcX: number,
+    ndcY: number,
+    aspect: number,
+    groundZ = 0,
+  ): [number, number] | null {
+    const inverse = invert(this.viewProjection(aspect));
+    if (!inverse) return null;
+
+    const unproject = (z: number): [number, number, number] | null => {
+      const w = inverse[3] * ndcX + inverse[7] * ndcY + inverse[11] * z + inverse[15];
+      if (w === 0) return null;
+      return [
+        (inverse[0] * ndcX + inverse[4] * ndcY + inverse[8] * z + inverse[12]) / w,
+        (inverse[1] * ndcX + inverse[5] * ndcY + inverse[9] * z + inverse[13]) / w,
+        (inverse[2] * ndcX + inverse[6] * ndcY + inverse[10] * z + inverse[14]) / w,
+      ];
+    };
+
+    const near = unproject(0);
+    const far = unproject(1);
+    if (!near || !far) return null;
+
+    const dz = far[2] - near[2];
+    if (Math.abs(dz) < 1e-6) return null;
+    const t = (groundZ - near[2]) / dz;
+    if (!Number.isFinite(t)) return null;
+    return [near[0] + (far[0] - near[0]) * t, near[1] + (far[1] - near[1]) * t];
   }
 
   orbit(dx: number, dy: number): void {
