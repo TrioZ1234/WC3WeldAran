@@ -123,6 +123,19 @@ const BOX_INDICES = new Uint16Array([
 const UNIFORM_FLOATS = 16 + 16 * 4 + 4 + 4 + 16 * 4;
 const UNIT_PALETTE_OFFSET = 88;
 
+/**
+ * The byte source WebGPU accepts, taken from the API itself.
+ *
+ * TypeScript 5.7 made typed arrays generic over their buffer, and a bare
+ * `Float32Array` now means `Float32Array<ArrayBufferLike>` - which admits
+ * `SharedArrayBuffer` and therefore no longer matches what `writeBuffer` wants.
+ * Nothing in this engine allocates a shared buffer, so the assertion is kept to
+ * the two places bytes actually cross into the GPU. Writing the buffer type into
+ * `TerrainMesh` and `InstanceBatch` instead would push a TypeScript version
+ * requirement into every module that merely describes a mesh.
+ */
+type GpuBytes = Parameters<GPUQueue["writeBuffer"]>[2];
+
 export class Renderer {
   private device!: GPUDevice;
   private context!: GPUCanvasContext;
@@ -238,12 +251,12 @@ export class Renderer {
     this.resize();
   }
 
-  private upload(data: BufferSource & { byteLength: number }, usage: GPUBufferUsageFlags): GPUBuffer {
+  private upload(data: ArrayBufferView, usage: GPUBufferUsageFlags): GPUBuffer {
     const buffer = this.device.createBuffer({
       size: Math.ceil(data.byteLength / 4) * 4,
       usage: usage | GPUBufferUsage.COPY_DST,
     });
-    this.device.queue.writeBuffer(buffer, 0, data as BufferSource);
+    this.device.queue.writeBuffer(buffer, 0, data as GpuBytes);
     return buffer;
   }
 
@@ -319,7 +332,7 @@ export class Renderer {
 
     batch.count = count;
     if (count > 0) {
-      this.device.queue.writeBuffer(batch.buffer, 0, data, 0, count * floatsPerInstance);
+      this.device.queue.writeBuffer(batch.buffer, 0, data as GpuBytes, 0, count * floatsPerInstance);
     }
   }
 
