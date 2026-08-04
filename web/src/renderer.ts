@@ -238,12 +238,19 @@ export class Renderer {
     this.resize();
   }
 
-  private upload(data: BufferSource & { byteLength: number }, usage: GPUBufferUsageFlags): GPUBuffer {
+  /**
+   * `ArrayBufferView<ArrayBufferLike>` rather than WebGPU's own buffer-source
+   * type on purpose: TypeScript 5.7 made typed arrays generic over their
+   * backing buffer, so a plain `Float32Array` no longer satisfies a signature
+   * that demands `ArrayBuffer` specifically. Every array here is a normal
+   * non-shared one; the cast at the call site is what the API actually wants.
+   */
+  private upload(data: ArrayBufferView & { byteLength: number }, usage: GPUBufferUsageFlags): GPUBuffer {
     const buffer = this.device.createBuffer({
       size: Math.ceil(data.byteLength / 4) * 4,
       usage: usage | GPUBufferUsage.COPY_DST,
     });
-    this.device.queue.writeBuffer(buffer, 0, data as BufferSource);
+    this.device.queue.writeBuffer(buffer, 0, data as GPUAllowSharedBufferSource);
     return buffer;
   }
 
@@ -319,7 +326,8 @@ export class Renderer {
 
     batch.count = count;
     if (count > 0) {
-      this.device.queue.writeBuffer(batch.buffer, 0, data, 0, count * floatsPerInstance);
+      this.device.queue.writeBuffer(
+        batch.buffer, 0, data as GPUAllowSharedBufferSource, 0, count * floatsPerInstance);
     }
   }
 

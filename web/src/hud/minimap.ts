@@ -35,7 +35,7 @@ export class Minimap {
   private spanY = 1;
 
   constructor(
-    private canvas: HTMLCanvasElement,
+    readonly canvas: HTMLCanvasElement,
     terrain: Terrain | null,
   ) {
     canvas.width = SIZE;

@@ -10,7 +10,7 @@
  * come first and get real state behind them rather than no-ops.
  */
 
-import { JassHandle, JassCode, INT, REAL, STR, BOOL, NULLV, NOTHING, HANDLE, CODE, asNumber, asBool, asString, formatReal } from "./values.ts";
+import { JassHandle, JassCode, INT, REAL, STR, BOOL, NULLV, NOTHING, HANDLE, asNumber, asBool, asString, formatReal } from "./values.ts";
 import type { JassValue, Random } from "./values.ts";
 import type { Clock } from "../sim/scheduler.ts";
 import type { Battlefield, UnitStats } from "../sim/units.ts";

@@ -111,12 +111,35 @@ async function loadAssets(dataRoot: string): Promise<{ assets: MatchAssets; note
   const misc = await text(`${dataRoot}/scripts/war3mapMisc.txt`);
   if (!misc) notes.push("нет war3mapMisc.txt, таблица урона стоковая");
 
+  progress("world", 74, "сетка проходимости");
+  const pathingMeta = await json<{
+    width: number; height: number; cellSize: number; origin: [number, number];
+  }>(`${dataRoot}/pathing.json`);
+  let pathing: { meta: typeof pathingMeta; cells: Uint8Array } | null = null;
+  if (pathingMeta) {
+    try {
+      const response = await fetch(`${dataRoot}/pathing.bin`);
+      if (response.ok) {
+        pathing = { meta: pathingMeta, cells: new Uint8Array(await response.arrayBuffer()) };
+      }
+    } catch {
+      // Falls through to the note below: a match without a grid still runs.
+    }
+  }
+  if (!pathing) notes.push("нет pathing.bin, юниты ходят по прямой");
+
   progress("world", 78, "стартовые позиции");
   const mapInfo = await json<{ players?: Array<{ start: [number, number] }> }>(`${dataRoot}/map.json`);
   const startLocations = (mapInfo?.players ?? []).map((player) => player.start);
 
   return {
-    assets: { scripts: complete ? scripts : [], resolvedUnits, misc, startLocations },
+    assets: {
+      scripts: complete ? scripts : [],
+      resolvedUnits,
+      misc,
+      startLocations,
+      pathing: pathing as MatchAssets["pathing"],
+    },
     notes,
   };
 }

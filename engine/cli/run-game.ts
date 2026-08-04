@@ -18,6 +18,7 @@ import { TICKS_PER_SECOND } from "../sim/scheduler.ts";
 import { Battlefield, loadUnitStats } from "../sim/units.ts";
 import { DamageTable } from "../sim/combat.ts";
 import { ONE } from "../sim/fixed.ts";
+import { PathGrid } from "../sim/pathing.ts";
 
 const WAR3_SCRIPTS = ["build/war3/common.j", "build/war3/Blizzard.j"];
 const MAP_SCRIPT = "build/extracted/war3map.j";
@@ -57,12 +58,26 @@ function main(argv: string[]): number {
   // VM is still a correct logic runner — it just has nothing to fight with.
   const resolvedPath = "build/data/resolved/units.json";
   const miscPath = "build/extracted/war3mapMisc.txt";
+  const pathingMetaPath = "build/data/pathing.json";
+  const pathingBinPath = "build/data/pathing.bin";
   if (existsSync(resolvedPath) && !argv.includes("--no-combat")) {
     const stats = loadUnitStats(JSON.parse(readFileSync(resolvedPath, "utf8")));
     const table = existsSync(miscPath) ? new DamageTable(readFileSync(miscPath, "utf8")) : new DamageTable();
+    // The map's own pathing grid, when the pipeline has exported it.
+    let pathing: PathGrid | undefined;
+    if (existsSync(pathingMetaPath) && existsSync(pathingBinPath)) {
+      pathing = new PathGrid(
+        JSON.parse(readFileSync(pathingMetaPath, "utf8")),
+        new Uint8Array(readFileSync(pathingBinPath)),
+      );
+      console.log(`pathing grid: ${pathing.width}x${pathing.height}, ` +
+        `${pathing.countStandable(32).toLocaleString()} standable cells`);
+    }
+
     vm.world.unitStats = stats;
     vm.world.battlefield = new Battlefield({
       damageTable: table,
+      pathing,
       // Neutral passive (15) never fights; otherwise anyone not explicitly
       // allied is an enemy, which is Warcraft III's default posture.
       hostile: (a, b) => {

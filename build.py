@@ -77,6 +77,44 @@ def stage_scripts() -> None:
         print("  run tools/fetch_war3_data.py to let the browser run the map's own script")
 
 
+def art_root() -> str:
+    """Union of the map's own imports and the stock art fetched from War3.mpq.
+
+    The converters walk a single tree, and the two halves of the map's art live
+    in two: the author's imports come out of the archive into `build/extracted`,
+    while everything inherited from a stock prototype is pulled by
+    `tools/fetch_war3_art.py` into `build/war3/art`. Converting only the former
+    leaves every stock unit without a model and every stock model without its
+    skin, so the trees are merged here - hardlinks where the filesystem allows
+    it, copies otherwise, and the map always wins a name collision because its
+    imports are what override the stock file in Warcraft III too.
+    """
+    union = os.path.join(BUILD, "artroot")
+    sources = [EXTRACT, os.path.join(BUILD, "war3", "art")]
+    linked = copied = 0
+    for source in sources:
+        if not os.path.isdir(source):
+            continue
+        for dirpath, _dirs, files in os.walk(source):
+            for name in files:
+                origin = os.path.join(dirpath, name)
+                target = os.path.join(union, os.path.relpath(origin, source))
+                if os.path.exists(target):
+                    continue
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                try:
+                    os.link(origin, target)
+                    linked += 1
+                except (OSError, NotImplementedError, AttributeError):
+                    shutil.copy2(origin, target)
+                    copied += 1
+    print(f"\n=== art root " + "=" * 51)
+    print(f"  {linked} linked, {copied} copied -> {os.path.relpath(union, ROOT)}")
+    if not os.path.isdir(sources[1]):
+        print("  no build/war3/art: run tools/fetch_war3_art.py for the stock models")
+    return union
+
+
 def stage() -> None:
     """Publish build output into both frontends.
 
@@ -132,10 +170,11 @@ def main() -> int:
     if skip_assets:
         print("\nskipping texture and model conversion (--skip-assets)")
     else:
-        run("convert textures", ["tools/convert_textures.py", EXTRACT,
+        art = art_root()
+        run("convert textures", ["tools/convert_textures.py", art,
                                  os.path.join(ASSETS, "textures"),
                                  "--manifest", os.path.join(ASSETS, "textures.json")])
-        run("convert models", ["tools/convert_models.py", EXTRACT,
+        run("convert models", ["tools/convert_models.py", art,
                                os.path.join(ASSETS, "models"),
                                "--textures", os.path.join(ASSETS, "textures"),
                                "--manifest", os.path.join(ASSETS, "models.json")])
