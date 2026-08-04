@@ -16,6 +16,8 @@ import { DamageTable } from "../../../engine/sim/combat.ts";
 import { ONE, unfx } from "../../../engine/sim/fixed.ts";
 import { TICKS_PER_SECOND } from "../../../engine/sim/scheduler.ts";
 import { ArmyDriver } from "../../../engine/ai/army-driver.ts";
+import { PathGrid } from "../../../engine/sim/pathing.ts";
+import type { PathingMeta } from "../../../engine/sim/pathing.ts";
 import type { BotProfile } from "../../../engine/ai/army-driver.ts";
 import {
   allianceTable,
@@ -45,6 +47,13 @@ export interface MatchAssets {
   misc: string | null;
   /** Start locations from `map.json`, used to place a sandbox skirmish. */
   startLocations: Array<[number, number]>;
+  /**
+   * The map's pathing grid, from `pathing.json` + `pathing.bin`.
+   *
+   * Optional on purpose: a training skirmish on an empty field needs no grid,
+   * and the runner must stay usable when only part of the pipeline has run.
+   */
+  pathing?: { meta: PathingMeta; cells: Uint8Array } | null;
 }
 
 /** `PLAYER_STATE_RESOURCE_GOLD` and `..._LUMBER` as common.j numbers them. */
@@ -54,6 +63,8 @@ const STATE_LUMBER = 2;
 export class MatchRunner {
   readonly vm: Interpreter;
   readonly field: Battlefield;
+  /** The pathing grid in use, or null when the match runs without one. */
+  readonly pathing: PathGrid | null;
   /** True when the map script was unavailable and this is a training skirmish. */
   readonly sandbox: boolean;
 
@@ -100,8 +111,12 @@ export class MatchRunner {
     if (this.stats.size === 0) this.stats = syntheticStats();
 
     const table = assets.misc ? new DamageTable(assets.misc) : new DamageTable();
+    const pathing = assets.pathing
+      ? new PathGrid(assets.pathing.meta, assets.pathing.cells)
+      : undefined;
+    this.pathing = pathing ?? null;
     this.field = new Battlefield(
-      { damageTable: table, hostile: (a, b) => this.hostile(a, b) },
+      { damageTable: table, hostile: (a, b) => this.hostile(a, b), pathing },
       config.seed,
     );
 
@@ -514,6 +529,7 @@ function syntheticStats(): Map<string, UnitStats> {
     range: range * ONE,
     acquireRange: 800 * ONE,
     speed: Math.trunc((speed * ONE) / TICKS_PER_SECOND),
+    collisionRadius: 32,
     canAttack: true,
     model: "",
   });

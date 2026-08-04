@@ -6,5 +6,18 @@ import { defineConfig } from "vite";
 export default defineConfig({
   publicDir: "public",
   build: { target: "esnext", outDir: "dist" },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    fs: {
+      // The worker imports `../../engine/**`, which lives outside this Vite
+      // root. Vite's default allow-list resolves to `web/` (there is no
+      // workspace marker above it), so those modules would be answered with
+      // HTTP 403 in dev and the sim worker would die on load.
+      allow: [".."],
+    },
+    // The staged `public/data` and `public/assets` are symlinks into build/,
+    // which holds thousands of converted files. Watching them is pointless and
+    // can exhaust inotify handles.
+    watch: { ignored: ["**/public/data/**", "**/public/assets/**", "**/build/**"] },
+  },
 });

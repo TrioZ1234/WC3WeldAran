@@ -506,3 +506,51 @@ def parse_w3e_header(data: bytes) -> TerrainInfo:
     width, height = r.int32(), r.int32()
     ox, oy = r.float32(), r.float32()
     return TerrainInfo(version, tileset, ground, cliff, width, height, ox, oy, r.pos)
+
+
+@dataclass
+class PathingMap:
+    """`war3map.wpm`: one byte of movement flags per 32x32 world-unit cell.
+
+    The grid is four cells to a terrain tile, so a 480x480 map is 1920x1920
+    cells covering exactly the same rectangle as the tilepoints. Row 0 is the
+    southern edge, which is the same orientation the tilepoints use.
+
+    Flag bits, as Warcraft III writes them:
+
+        0x02  no walk    ground movement blocked (cliffs, water, blockers)
+        0x04  no fly     air movement blocked
+        0x08  no build   nothing may be placed here
+        0x20  blight
+        0x40  ground     land rather than water; water units are kept out
+        0x80  amphibious hint set on blockers standing on land
+
+    Verified against this map: 26.0% of cells are walkable, and rendering the
+    grid reproduces the coastline and every bridge of the published minimap.
+    """
+
+    version: int
+    width: int
+    height: int
+    cells: bytes
+
+
+NO_WALK = 0x02
+NO_FLY = 0x04
+NO_BUILD = 0x08
+BLIGHT = 0x20
+GROUND = 0x40
+
+
+def parse_wpm(data: bytes) -> PathingMap:
+    r = Reader(data)
+    magic = r.fourcc()
+    if magic != "MP3W":
+        raise ParseError(f"expected MP3W, got {magic!r}")
+    version = r.int32()
+    width, height = r.int32(), r.int32()
+    expected = width * height
+    cells = data[r.pos:r.pos + expected]
+    if len(cells) != expected:
+        raise ParseError(f"pathing map truncated: {len(cells)} of {expected} cells")
+    return PathingMap(version, width, height, cells)

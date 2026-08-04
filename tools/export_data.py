@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.wc3.w3x import (  # noqa: E402
     PLAYER_TYPES, RACES, parse_doo, parse_imp, parse_object_data,
-    parse_units_doo, parse_w3e_header, parse_w3i, parse_wts,
+    parse_units_doo, parse_w3e_header, parse_w3i, parse_wpm, parse_wts,
 )
 
 TRIGSTR = re.compile(r"^TRIGSTR_(\d+)")
@@ -174,6 +174,36 @@ def main() -> int:
                     {"name": "flags", "type": "uint8"},
                 ],
             },
+        })
+
+    # -- pathing -------------------------------------------------------------
+    # One byte per 32x32 cell, straight from `war3map.wpm`. It ships as a raw
+    # blob for the same reason the terrain does: 3.7 million numbers have no
+    # business going through a JSON parser, and the bytes are the engine's
+    # working format anyway.
+    raw_wpm = read("war3map.wpm")
+    if raw_wpm:
+        pathing = parse_wpm(raw_wpm)
+        bin_path = os.path.join(out, "pathing.bin")
+        os.makedirs(os.path.dirname(bin_path), exist_ok=True)
+        with open(bin_path, "wb") as handle:
+            handle.write(pathing.cells)
+        print(f"  {os.path.relpath(bin_path):<44} {len(pathing.cells):>12,} bytes")
+
+        walkable = sum(1 for b in pathing.cells if not b & 0x02)
+        origin = ([terrain_info.offset_x, terrain_info.offset_y]
+                  if terrain_info else [-pathing.width * 16.0, -pathing.height * 16.0])
+        write_json(os.path.join(out, "pathing.json"), {
+            "width": pathing.width,
+            "height": pathing.height,
+            "cellSize": 32,
+            "origin": origin,
+            "rowOrder": "south-to-north",
+            "walkableCells": walkable,
+            "flags": {
+                "noWalk": 2, "noFly": 4, "noBuild": 8, "blight": 32, "ground": 64,
+            },
+            "binary": {"file": "pathing.bin", "count": pathing.width * pathing.height},
         })
 
     # -- placement ----------------------------------------------------------

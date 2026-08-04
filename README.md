@@ -46,7 +46,9 @@ cd web && npm install && npm run dev     # http://localhost:5173
 # …или нативная сборка: открыть каталог godot/ в Godot 4.3+
 
 # Рантайм: подтянуть скрипты и таблицы Warcraft III (~4 МБ, в git не хранятся),
-# разрешить объекты карты против стоковых прототипов и прогнать скрипт карты
+# разрешить объекты карты против стоковых прототипов и прогнать скрипт карты.
+# fetch_war3_data.py стоит запускать ДО build.py: иначе common.j и Blizzard.j
+# не попадут в build/data/scripts и понадобится python3 build.py --stage-only
 python3 tools/fetch_war3_data.py
 python3 tools/export_stock.py build/war3 build/data
 node engine/cli/run-jass.ts build/extracted/war3map.j
@@ -60,8 +62,10 @@ python3 tools/fetch_war3_art.py
 python3 tools/make_battle_demo.py            # -> build/battle.html
 
 # Проверки — установка не требуется, Node исполняет TypeScript сам
-node engine/test/smoke.ts                    # 74 проверки рантайма
+node engine/test/smoke.ts                    # 99 проверок рантайма
+node engine/test/pathing.ts                  # 23 проверки поиска пути
 node web/test/smoke.ts                       # 34 проверки лобби, матча, ботов
+node web/test/real-map.ts                    # матч веб-клиента на реальных данных, без браузера
 ```
 
 Python 3.8+ и Node 23.6+ (с этой версии TypeScript исполняется напрямую).
